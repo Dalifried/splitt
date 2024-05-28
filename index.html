@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>splitt</title>
+
+  <link href='https://fonts.googleapis.com/css?family=Baumans' rel='stylesheet'>
+  <style>
+    body {
+      background-color: #212020;
+      color: #c2c0ba;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    * {
+      font-family: 'Baumans';
+    }
+
+    #tool {
+      top: 50vh;
+      transform: translate(0, -50%);
+      height: 512px;
+      width: 672px;
+      background-color:#c2c0ba;
+      border-radius: 10px;
+      position: relative;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #title_ {
+      position: absolute;
+      left: 16px;
+      top: 14px;
+      color:#212020;
+      padding: 0;
+      margin: 0;
+    }
+
+    #pick_image {
+      display: none;
+    }
+    #pick_image_label {
+      border-radius: 2px;
+      display: flex;
+      padding: 0;
+      width: 114px;
+      height: 24px;
+      cursor: pointer;
+      background-color:#212020;
+      color:#c2c0ba;
+      position: relative;
+      left: 16px;
+      top: 64px;
+      font-size: 14px;
+      text-align: center;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #download-zip {
+      position: absolute;
+      top: 100px;
+      left: 16px;
+      width: 114px;
+      height: 24px;
+      padding: 0;
+      margin: 0;
+      border: none;
+      border-radius: 2px;
+      background:#212020;
+      color:#c2c0ba;
+      cursor: pointer;
+    }
+
+    #download-b64 {
+      position: absolute;
+      top: 126px;
+      left: 16px;
+      width: 114px;
+      height: 24px;
+      padding: 0;
+      margin: 0;
+      border: none;
+      border-radius: 2px;
+      background:#212020;
+      color:#c2c0ba;
+      cursor: pointer;
+    }
+
+    #split-sheet {
+      position: absolute;
+      top: 228px;
+      left: 16px;
+      width: 114px;
+      height: 24px;
+      padding: 0;
+      margin: 0;
+      border: none;
+      border-radius: 2px;
+      background:#212020;
+      color:#c2c0ba;
+      cursor: pointer;
+    }
+
+    #canvas-cont {
+      position:absolute;
+      padding: 0;
+      margin: 0;
+      right: 8px;
+      top: 50%;
+      transform: translate(0, -50%);
+      background:#212020;
+      color:#c2c0ba;
+      width: 504px;
+      height: 504px;
+      justify-content: center;
+      align-items: center;
+      display: flex;
+      border-radius: 10px;
+    }
+    #main-canvas {
+      padding: 0;
+      margin: 0;
+    }
+
+    #split-width {
+      position: absolute;
+      top: 164px;
+      left: 16px;
+      width: 110px;
+      height: 24px;
+      padding: 0;
+      margin: 0;
+      border: none;
+      border-radius: 2px;
+      padding-left: 4px;
+      background:#212020;
+      color:#c2c0ba;
+      cursor: pointer;
+    }
+    #split-height {
+      position: absolute;
+      top: 190px;
+      left: 16px;
+      width: 110px;
+      height: 24px;
+      padding: 0;
+      margin: 0;
+      border: none;
+      border-radius: 2px;
+      padding-left: 4px;
+      background:#212020;
+      color:#c2c0ba;
+      cursor: pointer;
+    }
+
+    *:focus {
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="tool">
+    <h2 id="title_">Splitt</h2>
+    <label for="pick_image" id="pick_image_label">Import</label>
+    <input id="pick_image" type="file" onchange="set_image(this.files[0])" accept="image/png, image/jpeg">  
+    
+    <button id="download-zip" onclick="download_zip()">Download Zip</button>
+    <button id="download-b64" onclick="download_b64()">Download B64</button>
+
+    <button id="split-sheet" onclick="split()">Split</button>
+    
+    <input type="number" id="split-width" value="8" onchange="split_width=this.value">
+    <input type="number" id="split-height" value="8" onchange="split_height=this.value">
+
+    <div id="canvas-cont">
+      <canvas id="main-canvas" width=504 height=504></canvas>
+    </div>
+  </div>
+
+  <script src="jszip.js"></script>
+  <script src="FileSaver.js"></script>
+  <script>
+    let main_cvs=document.getElementById('main-canvas')
+    let ctx=main_cvs.getContext('2d')
+    
+    let split_cvs=document.createElement('canvas')
+    let sctx=split_cvs.getContext('2d')
+
+    let zip_btn=document.getElementById('download-zip')
+    let b64_btn=document.getElementById('download-b64')
+
+    let images=[]
+    
+    let split_width=8;
+    let split_height=8;
+
+    function set_image(img) {
+      images=[]
+
+      let image=new Image()
+      image.src = URL.createObjectURL(img);
+
+      image.onload=function() {
+        if((image.width || image.height) > 504) {
+          return;
+        }
+
+        ctx.clearRect(0, 0, main_cvs.width, main_cvs.height)
+        main_cvs.width=image.width
+        main_cvs.height=image.height
+
+        ctx.drawImage(image, 0, 0)
+      }
+    }
+
+    function canvas_to_blob(canvas) {
+      return new Promise((resolve) => {
+          canvas.toBlob((blob) => {
+              resolve(blob);
+          }, 'image/png');
+      });
+    }
+
+    function blob_to_b64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            resolve(reader.result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function split() {
+      images=[]
+      let cols = Math.floor(main_cvs.width / split_width);
+      let rows = Math.floor(main_cvs.height / split_height);
+
+      split_cvs.width = split_width;
+      split_cvs.height = split_height;
+
+      for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+              sctx.imageSmoothingEnabled=false;
+              sctx.clearRect(0, 0, split_width, split_height);
+              sctx.drawImage(main_cvs, x * split_width, y * split_height, split_width, split_height, 0, 0, split_width, split_height);
+
+              let blob = await canvas_to_blob(split_cvs);
+              images.push(blob);
+          }
+      }
+      
+      toggle_btns(false)
+    }
+
+    function download_zip() {
+      if(images.length === 0) return;
+
+      let zip = new JSZip()
+
+      for(let i=0; i<images.length; i++) {
+        zip.file('sprite_'+i+'.png', images[i])
+      }
+
+      zip.generateAsync({ type: "blob" }).then(function(content) {
+        saveAs(content, "sprites.zip");
+      });
+    }
+
+    async function download_b64() {
+      if (images.length === 0) return;
+      let b64_array = [];
+
+      for (let i = 0; i < images.length; i++) {
+          let b64 = await blob_to_b64(images[i]);
+          b64_array.push(b64);
+      }
+
+      let b64_content = b64_array.join('\n');
+      let blob = new Blob([b64_content], { type: 'text/plain' });
+      saveAs(blob, 'sprites_base64.txt');
+    }
+  </script>
+</body>
+</html>
